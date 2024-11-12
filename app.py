@@ -286,16 +286,4 @@ if __name__ == '__main__':
         logger.error(f"An error occurred: {str(e)}")
         logger.error(traceback.format_exc())
         
-'''
 
-os.environ['https_proxy']='http://127.0.0.1:10809'
-genai.configure(api_key='AIzaSyAdNcrKseNy5lqqdN6SVtFGKOP4BuSqF70')
-
-model = genai.GenerativeModel(
-  "gemini-1.5-flash",
-  safety_settings=safetySettings
-)
-sample_audio = genai.upload_file(r"c:/users/c1/videos/300.wav")
-response = model.generate_content([prompt_recogn, sample_audio])
-print(response.text)
-'''
