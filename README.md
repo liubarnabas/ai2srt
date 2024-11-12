@@ -10,6 +10,8 @@
 - GeminiAI + 音视频转录为SRT字幕
 
 ## UI
+![image](https://github.com/user-attachments/assets/60b9bf77-ed65-4aad-b24f-a538ffbeca3e)
+
 
 启动将在web浏览器打开一个单页 `http://127.0.0.1:5030`. 可执行翻译或转录操作
 
