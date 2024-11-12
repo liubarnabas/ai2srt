@@ -17,9 +17,14 @@
 
 ## 部署
 
-Windows下载 预打包版，解压双击 `启动.bat`可用
+**Windows**
 
-Linux和Mac
+下载预打包版( https://github.com/jianchang512/ai2srt/releases/download/v0.1/windows-ai2srt-0.1.7z  )
+
+解压双击 `启动.bat`可用
+
+
+**Linux和Mac**
 
 ```
 
