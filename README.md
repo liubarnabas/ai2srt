@@ -31,16 +31,19 @@ https://github.com/user-attachments/assets/ba945a0f-2acc-4bac-b0c6-10988e278007
 
 **Windows**
 
-下载预打包版( https://github.com/jianchang512/ai2srt/releases/download/v0.1/windows-ai2srt-0.1.7z  )
+下载预打包版:
+
+https://github.com/jianchang512/ai2srt/releases/download/v0.2/windows-ai2srt-0.2.7z
 
 解压双击 `启动.bat`可用
 
 
 **Linux和Mac**
 
+
 ```
 
-git clone https://github.com/jianchang512/ai-trans-recogn 
+git clone https://github.com/jianchang512/ai2srt 
 
 cd ai-trans-recogn
 
