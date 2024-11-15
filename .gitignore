@@ -11,3 +11,4 @@ tmp
 *.spec
 *.exe
 test.py
+*.tmp
