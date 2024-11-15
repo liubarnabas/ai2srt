@@ -3,6 +3,7 @@ GeminiAI翻译字幕与转录音视频
 
 @author https://pyvideotrans.com
 """
+from pathlib import Path
 
 
 HOST='127.0.0.1'
@@ -13,26 +14,31 @@ import re,os,sys,datetime
 
 from datetime import timedelta
 import socket
-import requests
+
 import google.generativeai as genai
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
+
 from google.api_core.exceptions import ServerError,TooManyRequests,RetryError,GoogleAPICallError
-import tempfile
-import logging
+
 import traceback
-from flask import Flask, request, jsonify, send_file, render_template
+from flask import Flask, request, jsonify, send_file, render_template, send_from_directory
 from flask_cors import CORS
 import threading,webbrowser,time
 from waitress import serve
-from pathlib import Path
+from google.generativeai.types import RequestOptions
+from google.api_core import retry
+
 import json
-from cfg import *
+from cfg import ROOT_DIR,TMP_DIR,logger,safetySettings
+import tools
 
         
 
 
-app = Flask(__name__, template_folder=f'{ROOT_DIR}/templates')
+app = Flask(__name__, template_folder=f'{ROOT_DIR}/templates',static_folder=os.path.join(ROOT_DIR, 'tmp'), static_url_path='/tmp')
 CORS(app)
+@app.route('/tmp/<path:filename>')
+def static_files(filename):
+    return send_from_directory(app.config['STATIC_FOLDER'], filename)
 
 
 with open(ROOT_DIR+"/prompt.json",'r',encoding='utf-8') as f:
@@ -55,7 +61,7 @@ class Gemini():
         self.audio_file=audio_file
     # 三步反思翻译srt字幕
     def run_trans(self):
-        text_list=get_subtitle_from_srt(self.srt_text,is_file=False)
+        text_list=tools.get_subtitle_from_srt(self.srt_text,is_file=False)
         split_source_text = [text_list[i:i + self.piliang] for i in  range(0, len(text_list), self.piliang)]
         
         genai.configure(api_key=self.api_key)
@@ -71,8 +77,6 @@ class Gemini():
             try:
                 prompt=PROMPT_LIST['prompt_trans'].replace('{lang}',self.language).replace('<INPUT></INPUT>',f'<INPUT>{srt_str}</INPUT>')
 
-                #logger.info(f'[Gemini]请求发送:{prompt=}\n')
-                
                 print(f'开始发送请求 {i=}')
                 response = model.generate_content(
                     prompt,
@@ -105,7 +109,7 @@ class Gemini():
 
                 if response and len(response.candidates) > 0 and response.candidates[0].finish_reason == 1 and  response.candidates[0].content and response.candidates[0].content.parts:
                     result_it = self._extract_text_from_tag(response.text)
-                    if not result:
+                    if not result_it:
                         raise Exception(f"翻译结果出错{response.text}")
                     result_str+=result_it.strip()+"\n\n"
                     continue
@@ -120,7 +124,7 @@ class Gemini():
     # 转录音视频为字幕
     def run_recogn(self):
         tmpname=f'{TMP_DIR}/{time.time()}.mp3'
-        runffmpeg(['ffmpeg','-y', '-i', self.audio_file, '-ac', '1', '-ar', '8000',tmpname])
+        tools.runffmpeg(['ffmpeg','-y', '-i', self.audio_file, '-ac', '1', '-ar', '8000',tmpname])
         self.audio_file = tmpname
         prompt=PROMPT_LIST['prompt_recogn']
         if self.language:
@@ -158,9 +162,76 @@ class Gemini():
                 print('429请求太频繁，暂停60s后重试')
                 time.sleep(60)
                 continue
-                #raise Exception('429请求太频繁')
             except Exception as e:
                 raise
+            finally:
+                try:
+                    Path(self.audio_file).unlink(missing_ok=True)
+                except:
+                    pass
+    def run_jieshuo(self):
+        tmpname=f'{TMP_DIR}/{time.time()}.mp4'
+        tools.runffmpeg(['ffmpeg','-y', '-i', self.audio_file, '-c:v','libx265','-ac', '1', '-ar','16000', '-preset','superfast',tmpname])
+        self.audio_file = tmpname
+        prompt=PROMPT_LIST['prompt_jieshuo']
+        result={"timelist":[],"srt":""}
+        os.environ['https_proxy']='http://127.0.0.1:10809'
+        while 1:
+            try:
+                genai.configure(api_key=self.api_key)            
+                model = genai.GenerativeModel(
+                  self.model_name,
+                  safety_settings=safetySettings
+                )
+
+                sample_audio = genai.upload_file(self.audio_file)
+                while sample_audio.state.name == "PROCESSING":
+                    print('.', end='')
+                    time.sleep(10)
+                    sample_audio = genai.get_file(sample_audio.name)
+                chat_session = model.start_chat(
+                  history=[
+                      {
+                      "role": "user",
+                      "parts": [
+                        sample_audio,
+                      ],
+                    }
+                ])
+                response = chat_session.send_message(
+                    prompt,
+                    request_options=RequestOptions(
+                                    retry=retry.Retry(initial=10, multiplier=2, maximum=60, timeout=900),
+                                    timeout=900
+                    )
+                )
+
+
+                res_str=response.text.strip()               
+                          
+                logger.info(res_str)
+                time_1=re.search(r'<TIME>\**?(.*)\**?</TIME>',res_str,re.I|re.S)
+                if time_1:
+                    result['timelist']=time_1.group(1).strip()
+                    
+                srt_2=re.search(r'<SRT>\**?(.*)\**?</SRT>',res_str,re.I|re.S)
+                if srt_2:
+                    result["srt"]=srt_2.group(1).strip()
+                if not result:
+                    raise Exception('结果为空')
+                return result
+            except (ServerError,RetryError,socket.timeout) as e:
+                error='无法连接到Gemini,请尝试使用或更换代理'
+                raise Exception(error)
+            except TooManyRequests as e:            
+                raise Exception('429请求太频繁')
+            except Exception as e:
+                raise    
+            finally:
+                try:
+                    Path(self.audio_file).unlink(missing_ok=True)
+                except:
+                    pass
     
     def _extract_text_from_tag(self,text):    
         match = re.search(r'<step3_refined_translation>(.*?)</step3_refined_translation>', text,re.S)
@@ -191,6 +262,7 @@ def index():
         prompt_trans=PROMPT_LIST['prompt_trans'],
         prompt_recogn=PROMPT_LIST['prompt_recogn'],
         prompt_recogn_trans=PROMPT_LIST['prompt_recogn_trans'],
+        prompt_jieshuo=PROMPT_LIST['prompt_jieshuo'],
     )
 
 
@@ -205,7 +277,7 @@ def update_prompt():
     return jsonify({"code":0,"msg":"ok"})
 
 @app.route('/upload', methods=['POST'])
-def upload_file():
+def upload():
     try:
         if 'audio' not in request.files:  # 检查是否上传了文件
             return jsonify({"code":1,'msg': 'No file part'})
@@ -216,14 +288,142 @@ def upload_file():
 
         # 获取文件扩展名
         file_ext = os.path.splitext(file.filename)[1]
+        name=re.sub(r'["\'?,\[\]{}()`!@#$%\^&*+=\\;:><，。、？：；“”‘’—｛（）｝·|~]','_',file.filename)
         # 使用时间戳生成文件名
-        filename = str(int(time.time())) + file_ext
-        # 保存文件到 /tmp 目录
-        filepath = f'{TMP_DIR}/{filename}'
-        file.save(filepath)
-        return jsonify({'code':0,'msg': 'ok', 'data': filepath})
+        filename=f'{TMP_DIR}/{time.time()}{file_ext}'
+        file.save(filename)
+        return jsonify({'code':0,'msg': 'ok', 'data': filename})
     except Exception as e:
         return jsonify({"code":1,'msg': str(e)})
+
+
+@app.route('/upload_video', methods=['POST'])
+def upload_video():
+    try:
+        if 'audio' not in request.files:  # 检查是否上传了文件
+            return jsonify({"code":1,'msg': 'No file part'})
+
+        file = request.files['audio']
+        if file.filename == '':  # 检查是否选择了文件
+            return jsonify({"code":1,'msg': 'No selected file'})
+
+        # 获取文件扩展名
+        name,file_ext = os.path.splitext(file.filename)
+        print(f'{name=}')
+        name=re.sub(r'["\'?,\[\]{}()`!@#$%\^&*+=\\;:><，。、？：；“”‘’—｛（）｝·|~ \s]','_',name.strip())
+        print(f'{name=}')
+        print(f'{file.content_length=}')
+        # 使用时间戳生成文件名
+        filename = name+"-"+tools.get_md5(file.filename)
+        # 创建目录
+        target_dir=TMP_DIR+f'/{filename}'
+        Path(target_dir).mkdir(parents=True, exist_ok=True)
+
+        file.save(f'{target_dir}/raw{file_ext}')
+
+        # 保存文件到 /tmp 目录
+        if file_ext.lower()!='.mp4':
+            tools.runffmpeg(['-y','-i',f'{target_dir}/raw{file_ext}','-c:v','copy',f'{target_dir}/raw.mp4'])
+        return jsonify({'code':0,'msg': 'ok', 'data': f'{target_dir}/raw.mp4'})
+    except Exception as e:
+        return jsonify({"code":1,'msg': str(e)})
+
+def _checkparam(rate='0',pitch='0'):
+    try:
+        pitch=int(pitch)
+        pitch=f'+{pitch}' if pitch>=0 else pitch
+    except:
+        pitch='+0'
+    pitch=f'{pitch}Hz'
+
+    try:
+        rate=int(rate)
+        rate=f'+{rate}' if rate>=0 else rate
+    except:
+        rate='+0'
+    rate=f'{rate}%'
+    return rate,pitch
+
+@app.route('/jieshuo', methods=['POST'])
+def jieshuo():
+    data=request.get_json()
+    model_name = data.get('model_name')
+    api_key=data.get('api_key')
+    proxy=data.get('proxy')
+    video_file=data.get('video_file')
+    role=data.get('role')
+    rate=data.get('rate',0)
+    pitch=data.get('pitch',0)
+    autoend=int(data.get('autoend',0))
+    rate,pitch=_checkparam(rate,pitch)
+    insert_srt=int(data.get('insert',0))
+
+    
+    if not all([api_key]):  # Include audio_filename in the check
+        return jsonify({"code":1,"msg": "必须输入api_key"})
+    if not video_file:
+        return jsonify({"code":2,"msg": "视频文件必须要上传"})
+        
+    if proxy:
+        os.environ['https_proxy']=proxy
+    try:
+
+        task=Gemini(model_name=model_name,api_key=api_key,audio_file=video_file)
+        result=task.run_jieshuo()
+        if not result:
+            return jsonify({"code":3,"msg":'无解说文案生成'})
+        if autoend!=1:
+            return jsonify({"code":0,"msg":"ok","data":result}) 
+        
+        # 开始根据时间戳截取视频
+        tools.create_short_video(
+            video_path=video_file,
+            time_list=result['timelist'],
+            srt_str=result['srt'],
+            role=role,
+            pitch=pitch,
+            rate=rate,
+            insert_srt=insert_srt
+        )
+        # 开始根据字幕配音
+        video_url='/tmp/'+str(Path(video_file).parent.stem)+'/shortvideo.mp4'
+        print(f'完成 {video_url=}')
+        return jsonify({"code":0,"msg":"ok","data":result,"url":video_url})
+    except Exception as e:
+        logger.exception(e, exc_info=True)
+        return jsonify({"code":2,"msg":str(e)})
+
+@app.route('/gocreate', methods=['POST'])
+def gocreate():
+    # 开始根据时间戳截取视频
+    data=request.get_json()
+    timelist=data.get('timelist')
+    srt=data.get('srt')
+    video_file=data.get('video_file')
+    role=data.get('role')
+    insert_srt=int(data.get('insert',0))
+    pitch=data.get('pitch',0)
+    rate=data.get('rate',0)
+    rate,pitch=_checkparam(rate,pitch)
+    print(f'{rate=},{pitch=}')
+    try:
+        tools.create_short_video(
+            video_path=video_file,
+            time_list=timelist,
+            srt_str=srt,
+            role=role,
+            pitch=pitch,
+            rate=rate,
+            insert_srt=insert_srt
+        )
+        # 开始根据字幕配音
+        video_url='/tmp/'+str(Path(video_file).parent.stem)+'/shortvideo.mp4'
+        print('完成')
+        return jsonify({"code":0,"msg":"ok","url":video_url})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({"code":1,"msg":str(e)})
 
 
 @app.route('/api', methods=['POST'])

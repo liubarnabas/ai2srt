@@ -3,53 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeminiAI 三步翻译与音视频转录</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
-	<style>
-		.accordion-button::after{
-			position:absolute;
-			left:0;
-			margin-left:0;
+    <title>GeminiAI一键创建解说短视频</title>
+    <link rel="stylesheet" href="https://cdn.staticfile.net/bootstrap/5.3.2/css/bootstrap.min.css">
+    <script src="https://cdn.staticfile.net/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.staticfile.net/jquery/3.7.1/jquery.min.js"></script>
+    <style>
+        .accordion-button::after {
+            position: absolute;
+            left: 0;
+            margin-left: 0;
+        }
+		.btn[disabled]{
+			cursor:not-allowed;
+			pointer-events:auto;
 		}
-	</style>
+    </style>
 </head>
 <body>
-    <div class=" px-5  mx-5  shadow">
-                <h1 class="text-center py-3">GeminiAI 音视频转录& 三步翻译字幕</h1>
-				<div class="accordion accordion-flush" id="accordionExample">
-				  <div class="accordion-item">
-					<h2 class="accordion-header">
-					  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
-						修改提示词
-					  </button>
-					</h2>
-					<div id="collapseOne" class="accordion-collapse collapse " data-bs-parent="#accordionExample">
-					  <div class="accordion-body">
-						<div class="row">							
-							<div class="col-4">
-								<h3 class="fs-6 text-muted">用于上传字幕时翻译到目标语言的三步反思提示词</h3>
-								<textarea  style="min-height:200px" id="prompt_trans"  onchange="update_prompt(this,'prompt_trans')" class="form-control" row="10">{{prompt_trans}}</textarea>
-							</div>
-							<div class="col-4">
-								<h3 class="fs-6 text-muted">用于上传音视频文件进行转录但不翻译的提示词</h3>
-								<textarea  style="min-height:200px"  onchange="update_prompt(this,'prompt_recogn')" row="10"  id="prompt_recogn" class="form-control">{{prompt_recogn}}</textarea>
-							
-							</div>
-							<div class="col-4">
-								<h3 class="fs-6 text-muted">用于提示转录结果需要翻译的提示词</h3>
-								<textarea  style="min-height:200px"  onchange="update_prompt(this,'prompt_recogn_trans')" row="10" id="prompt_recogn_trans" class="form-control">{{prompt_recogn_trans}}</textarea>
-							</div>							
-						</div>						
-					  </div>
-					</div>
-				  </div>
-				</div>
-                <form id="translate-form">
-                    <div class="row mt-4">
-                        <div class="col-md-2">
-                            <label for="subtitle-language" class="form-label text-muted">翻译到的目标语言</label>
+<div class=" px-5  mx-5  shadow">
+    <h1 class="text-center py-3">GeminiAI一键创建解说短视频</h1>
+    <div class="alert alert-light">
+        <div class="row row-cols-3 my-2">
+            <div>
+                <div class="input-group">
+                    <label for="model" class="input-group-text text-muted">模型</label>
+                    <select class="form-select" id="model">
+                        <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+                        <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <div class="input-group">
+                    <label for="api-key" class="input-group-text text-muted">Gemini Key</label>
+                    <input type="text" class="form-control" id="api-key">
+                </div>
+            </div>
+            <div>
+                <div class="input-group">
+                    <label for="api-key" class="input-group-text text-muted">代理</label>
+                    <input type="text" class="form-control" id="proxy">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile-tab-pane"
+                    type="button" role="tab">创建视频解说
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link " id="home-tab" data-bs-toggle="tab" data-bs-target="#home-tab-pane"
+                    type="button" role="tab">字幕翻译&音视频转录
+            </button>
+        </li>
+    </ul>
+    <div class="tab-content" id="myTabContent">
+        <div class="tab-pane fade " id="home-tab-pane" role="tabpanel">
+            <button class="btn btn-light" data-bs-toggle="collapse" href="#collapseOne" role="button">
+				<img src="https://cdn.staticfile.net/bootstrap-icons/1.11.3/icons/pencil.svg" height="14">
+                修改提示词
+            </button>
+            <div class="collapse" id="collapseOne">
+                <div class="row">
+                    <div class="col-4">
+                        <h3 class="fs-6 text-muted">用于上传字幕时翻译到目标语言的三步反思提示词</h3>
+                        <textarea style="min-height:200px" id="prompt_trans"
+                                  onchange="update_prompt(this,'prompt_trans')" class="form-control"
+                                  row="10">{{ prompt_trans }}</textarea>
+                    </div>
+                    <div class="col-4">
+                        <h3 class="fs-6 text-muted">用于上传音视频文件进行转录但不翻译的提示词</h3>
+                        <textarea style="min-height:200px" onchange="update_prompt(this,'prompt_recogn')" row="10"
+                                  id="prompt_recogn" class="form-control">{{ prompt_recogn }}</textarea>
+
+                    </div>
+                    <div class="col-4">
+                        <h3 class="fs-6 text-muted">用于提示转录结果需要翻译的提示词</h3>
+                        <textarea style="min-height:200px" onchange="update_prompt(this,'prompt_recogn_trans')" row="10"
+                                  id="prompt_recogn_trans" class="form-control">{{ prompt_recogn_trans }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <form id="translate-form">
+                <div class="row mt-4">
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <label for="subtitle-language" class="input-group-text">翻译到的目标语言</label>
+
                             <select class="form-select" id="subtitle-language">
                                 <option value="-">选择目标语言</option>
                                 <option value="简体中文">简体中文</option>
@@ -71,68 +115,220 @@
                                 <option value="瑞典语">瑞典语</option>
                             </select>
                         </div>
-                        <div class="col-md-2">
-                            <label for="model" class="form-label text-muted">模型</label>
-                            <select class="form-select" id="model">
-                                <option value="gemini-1.5-pro">gemini-1.5-pro</option>
-                                <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="api-key" class="form-label text-muted">Gemini Key</label>
-                            <input type="text" class="form-control" id="api-key">
-                        </div>
-						<div class="col-md-2">
-                            <label for="api-key" class="form-label text-muted">代理</label>
-                            <input type="text" class="form-control" id="proxy">
-                        </div>
-						<div class="col-md-2">
-                            <label for="api-key" class="form-label text-muted">同时翻译行</label>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <label for="api-key" class="input-group-text ">同时翻译行</label>
                             <input type="text" class="form-control" value="50" id="piliang">
                         </div>
-						<div class="col-md-2">
-                            <label for="api-key" class="form-label text-muted">翻译后暂停秒</label>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <label for="api-key" class="input-group-text ">翻译后暂停秒</label>
                             <input type="text" class="form-control" value="10" id="waitsec">
                         </div>
                     </div>
-                    <div class="row mt-4">
-                        <div class="col-md-6">
-							<div class="d-flex align-items-center justify-content-between">
-                                <button class="btn btn-light text-nowrap"  type="button" id="load-srt">上传原SRT字幕翻译</button>
-								<div  id="upload_label_wrap" class=" position-relative d-flex justify-content-end ">
-								  <label id="upload_label" for="upload" class=" position-absolute btn btn-light  w-75 end-0  ">上传音视频转录为字幕</label>
-								  <input onchange="uploadFile(this)" class="form-control opacity-0 position-relative w-50"  style="z-index:-1"  accept="audio/*,video/*" type="file" id="upload">
-								</div>
-							</div>
-							<div class="input-group ">
-                                <textarea placeholder="SRT字幕和音视频只可二选一，选择音视频将转录为字幕，如果同时选择了目标语言，会将转录结果翻译后返回" class="form-control w-100" id="source-srt" rows="10"></textarea>
+                </div>
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="input-group ">
+                            <textarea placeholder="SRT字幕和音视频只可二选一，选择音视频将转录为字幕，如果同时选择了目标语言，会将转录结果翻译后返回"
+                                      class="form-control w-100" id="source-srt" rows="10"></textarea>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <button class="btn btn-outline-primary btn-sm text-nowrap" type="button" id="load-srt">上传原SRT字幕翻译</button>
+                            <div id="upload_label_wrap" class=" position-relative d-flex justify-content-end ">
+                                <label id="upload_label" for="upload"
+                                       class=" position-absolute btn btn-outline-primary btn-sm   end-0  ">上传音视频转录为字幕</label>
+                                <input onchange="uploadFile(this)" class="form-control opacity-0 position-relative w-50"
+                                       style="z-index:-1" accept="audio/*,video/*" type="file" id="upload">
                             </div>
-							
                         </div>
-                        <div class="col-md-6 text-end">
-								<button class="btn btn-light" type="button" id="download-srt">下载翻译结果为SRT字幕文件</button>
-								
-                                <textarea placeholder="在此显示翻译后的结果" class="form-control w-100" id="target-srt" rows="10"></textarea>
-                        </div>
-                    </div>
-					<div id="result_tips" class="text-primary text-center"></div>
-                    <div class="row mt-4">
-                        <div class="col-md-12 text-center">
-                            <button class="btn btn-danger btn-lg" type="submit" id="submit-button">提交处理</button>
-                        </div>
-                    </div>
-					
-                </form>
-				
-				
-				<div class="my-5 w-auto text-center">
-					<a href="https://pyvideotrans.com/gemini.html" class="btn btn-link text-muted text-decoration-none" target="_blank">点击查看如何获取 Gemini Key</a>
-				</div>
-    </div>
 
-    <script>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <textarea placeholder="在此显示翻译后的结果" class="form-control w-100" id="target-srt" rows="10"></textarea>
+                        <button class="btn btn-outline-primary btn-sm" type="button" id="download-srt">下载翻译结果为SRT字幕文件</button>
+                    </div>
+                </div>
+                <div id="result_tips" class="text-primary text-center"></div>
+                <div class="row mt-4">
+                    <div class="col-md-12 text-center">
+                        <button class="btn btn-danger btn-lg" type="submit" id="submit-button">提交处理</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="tab-pane fade show active" id="profile-tab-pane" role="tabpanel">
+            <button class="btn btn-light my-2" data-bs-toggle="collapse" href="#collapseExample" role="button">
+				<img src="https://cdn.staticfile.net/bootstrap-icons/1.11.3/icons/pencil.svg" height="14">
+                修改解说文案生成提示词
+            </button>
+
+            <div class="collapse" id="collapseExample">
+                <div class="card card-body">
+                    <textarea onchange="update_prompt(this,'prompt_jieshuo')" id="prompt_jieshuo" class="form-control"
+                              style="min-height:200px">{{ prompt_jieshuo }}</textarea>
+                </div>
+            </div>
+
+            <div id="droparea" class="my-2 d-flex align-items-center justify-content-center position-relative border"
+                 style="height:400px">
+                <video controls id="video" class="h-100 mw-100 position-relative" style="z-index:1" hidden></video>
+
+
+                <div style="z-index:0;position:absolute;width:400px;height:200px;left:50%;margin-left:-200px;top:100px;border:2px dashed #ddd"
+                     id="drop" class="d-flex align-items-center justify-content-center ">
+                    拖拽视频到此处或点击上传视频
+                    <input accept="video/*" type="file" onchange="upload_video(this)"
+                           style="position:absolute;left:0;right:0;top:0;bottom:0;opacity:0;cursor:pointer">
+                </div>
+                <button id="close" onclick="deletevideo(this)" style="z-index:9"
+                        class="position-absolute top-0 end-0  btn btn-close" hidden></button>
+            </div>
+
+            <div class="my-2 row d-flex align-items-center">
+                <div class="col-md-2">
+                    <div class="input-group">
+
+                    <label for="pitch" class="input-group-text ">音调</label>
+                    <input type="number" min="-50" max="50" class="form-control" value="0" id="pitch">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="input-group">
+                    <label for="rate" class="input-group-text ">语速</label>
+                    <input type="number" value="50" min="-90" max="100" class="form-control"    id="rate" />
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <div class="input-group">
+						<label for="role" class="input-group-text ">配音角色</label>
+						<select class="form-control" id="role">
+							<option value="zh-HK-HiuGaaiNeural">zh-HK-HiuGaaiNeural</option>
+							<option value="zh-HK-HiuMaanNeural">zh-HK-HiuMaanNeural</option>
+							<option value="zh-HK-WanLungNeural">zh-HK-WanLungNeural</option>
+							<option value="zh-CN-XiaoxiaoNeural">zh-CN-XiaoxiaoNeural</option>
+							<option value="zh-CN-XiaoyiNeural">zh-CN-XiaoyiNeural</option>
+							<option value="zh-CN-YunjianNeural">zh-CN-YunjianNeural</option>
+							<option value="zh-CN-YunxiNeural">zh-CN-YunxiNeural</option>
+							<option value="zh-CN-YunxiaNeural">zh-CN-YunxiaNeural</option>
+							<option value="zh-CN-YunyangNeural">zh-CN-YunyangNeural</option>
+							<option value="zh-CN-liaoning-XiaobeiNeural">zh-CN-liaoning-XiaobeiNeural</option>
+							<option value="zh-TW-HsiaoChenNeural">zh-TW-HsiaoChenNeural</option>
+							<option value="zh-TW-YunJheNeural">zh-TW-YunJheNeural</option>
+							<option value="zh-TW-HsiaoYuNeural">zh-TW-HsiaoYuNeural</option>
+							<option value="zh-CN-shaanxi-XiaoniNeural">zh-CN-shaanxi-XiaoniNeural</option>
+						</select>
+                    </div>
+                </div>
+				<div class="col-md-2">
+					<div class="form-check">
+					  <input class="form-check-input" type="checkbox" value="" checked id="insert">
+					  <label class="form-check-label" for="insert">
+						嵌入解说字幕
+					  </label>
+					</div>
+                </div>	
+				<div class="col-md-2">
+					<div class="form-check" title="不选中的话可以中途修改文案">
+					  <input class="form-check-input" type="checkbox" value="" checked id="autoend">
+					  <label class="form-check-label" for="autoend">
+						一键生成不暂停
+					  </label>
+					</div>
+                </div>				
+            </div>
+
+            <div class="my-2 text-center">
+                <button class="btn btn-danger" id='tijiao-btn' onclick="tijiaojieshuo(this)">提交生成解说文案</button>
+                <button class="btn btn-primary" id='tijiao-btn2' onclick="jieshuo_2(this)" disabled>继续生成短视频</button>
+            </div>
+
+
+            <div id="wrap" class="my-2" hidden>
+                <video hidden controls style="max-width: 100%;max-height: 400px" id="resultvideo"></video>                
+				<div class="my-2">
+					<strong>高能片段裁剪区域:</strong> 
+					<span id="time-list" ></span>
+				</div>
+				<div class="my-2">
+					<strong>解说文案</strong> 
+					<span style="font-size:12px">(开始操作前取消<code>一键生成不暂停</code>后，可在此修改解说文案再<code>继续生成短视频</code>)
+				</div>
+                <textarea style="height:300px" id="result-textarea" class="my-2 p-1 form-control w-100"></textarea>
+            </div>
+
+        </div>
+    </div>
+    <div class="my-5 w-auto text-center">
+        <a href="https://pyvideotrans.com/gemini.html" class="btn btn-link text-muted text-decoration-none"
+           target="_blank">点击查看如何获取 Gemini Key</a>
+    </div>
+</div>
+
+<script>
 	
 window.audio_file=null;
+// 上传视频后服务器返回的临时存储位置
+window.video_url=null;
+
+function deletevideo(el){
+	$("#video").removeAttr('src').attr('hidden',true);
+	$("#close").attr('hidden',true);
+	$('#wrap').attr('hidden',true)
+	$('#result-textarea').val('');
+	$('#time-list').text('');
+	$('#resultvideo').attr('hidden',true).removeAttr('src');
+
+}
+
+function upload_video(e) {
+  const file = e.files[0]; // 获取选择的文件
+
+  if (!file) {
+    alert('必须选择视频上传')
+    return;
+  }
+  $('#tijiao-btn').text('上传视频中').prop('disabled',true)
+  window.video_url=null;
+  let reader = new FileReader();
+      reader.onload = function(e) {
+		let $video = $("#video");
+		let $close = $("#close");
+        $video.attr("src", e.target.result); 
+        $video.removeAttr("hidden");
+        $video.get(0).play(); 
+        $close.removeAttr("hidden");
+	};
+	reader.readAsDataURL(file);
+  const formData = new FormData();
+  formData.append('audio', file,file.name); //  'audio'对应Flask后端接收的参数名
+  $.ajax({
+    url: '/upload_video', // Flask 后端路由
+    type: 'POST',
+    data: formData,
+    processData: false, // 阻止 jQuery 对数据进行处理
+    contentType: false, // 阻止 jQuery 设置 Content-Type
+    success: function(response) {
+	$('#tijiao-btn').text('提交处理').prop('disabled',false)
+	  if(response.code!==0){
+	     return alert(response.msg);
+	  }	
+	  window.video_url=response.data;
+      console.log('File uploaded successfully:', response);
+      // 上传成功后的处理，例如显示成功消息
+    },
+    error: function(xhr, status, error) {
+	$('#tijiao-btn').text('提交处理').prop('disabled',false)
+		alert(error);
+      console.error('File upload failed:', error);
+      // 上传失败后的处理，例如显示错误消息
+    }
+  });
+}
+
 function uploadFile(e) {
   const file = e.files[0]; // 获取选择的文件
 
@@ -187,7 +383,171 @@ $.ajax({
 	}
 })
 }
-        $(document).ready(function() {
+
+function tijiaojieshuo(el){
+	var formData = {
+		'model_name': $('#model').val(),
+		'api_key': $('#api-key').val(),
+		'proxy': $('#proxy').val().trim(),
+		"video_file":window.video_url,
+        "role":$("#role").val(),
+        "rate":$("#rate").val(),
+        "pitch":$("#pitch").val(),
+		"autoend":$('#autoend').prop('checked')?1:0,
+		"insert":$('#insert').prop('checked')?1:0
+	};
+	if(!formData['api_key']){
+	
+		return alert('必须填写Api Key');
+	}
+	if(formData['proxy'] && formData['proxy'].substr(0,4)!='http'){
+	
+		return alert('代理必须以http开头');
+	}
+	if(!formData['video_file']){
+		return alert('必须上传视频')
+	}
+	$(el).text('处理中').prop('disabled',true)
+	$('#tijiao-btn2').prop('disabled',true)
+	$('#wrap').prop('hidden',true)
+	$('#result-textarea').text('');
+	$('#time-list').text('');	
+	$('#resultvideo').removeAttr('src').attr('hidden');
+
+	$.ajax({
+		url: '/jieshuo',
+		type: 'POST',
+		data: JSON.stringify(formData),
+		contentType: 'application/json',
+        timeout:7200000,
+		success: function(response) {
+		    console.log(response)
+			// 启用提交按钮
+			
+			if (response.code === 0) {
+				$('#wrap').removeAttr('hidden')
+				$('#result-textarea').val(response.data['srt']);
+				$('#time-list').text(response.data['timelist']);
+				if(formData['autoend']){
+					$(el).text('提交处理').prop('disabled', false);
+					$('#resultvideo').removeAttr('hidden').attr('src',response.url);
+				}else{
+					$(el).text('文案已生成')
+					$('#tijiao-btn2').prop('disabled', false);
+				}
+			} else {
+				// 显示错误信息
+				alert(response.msg);
+				$(el).text('提交处理').prop('disabled', false);
+			}
+		},
+		error: function(xhr, status, error) {
+			$(el).text('提交处理').prop('disabled', false);
+			// 启用提交按钮
+			alert('请求错误！' + error);
+		}
+	});
+	
+}
+
+
+function jieshuo_2(el){
+	var formData = {
+		"srt":$('#result-textarea').val().trim(),
+		"timelist":$('#time-list').text().trim(),
+		"video_file":window.video_url,
+        "role":$("#role").val(),
+        "rate":$("#rate").val(),
+        "pitch":$("#pitch").val(),
+		"insert":$('#insert').prop('checked')?1:0
+		
+	};
+	$(el).text('生成短视频中..').prop('disabled',true)
+	$.ajax({
+		url: '/gocreate',
+		type: 'POST',
+		data: JSON.stringify(formData),
+		contentType: 'application/json',
+        timeout:7200000,
+		success: function(response) {
+		    console.log(response)
+			// 启用提交按钮			
+			if (response.code === 0) {
+				$('#resultvideo').removeAttr('hidden').attr('src',response.url);
+				$(el).text('继续生成短视频').prop('disabled', true);
+				$('#tijiao-btn').text('提交生成文案').prop('disabled', false);
+			} else {
+				// 显示错误信息
+				$(el).text('继续生成短视频').prop('disabled', false);
+				alert(response.msg);
+			}
+		},
+		error: function(xhr, status, error) {
+			$(el).text('继续生成短视频').prop('disabled', false);
+			alert('请求错误！' + error);
+		}
+	});
+	
+}
+
+$(document).ready(function() {
+		// 视频解说 start
+		  let $drop = $("#drop");
+  let $video = $("#video");
+  let $close = $("#close");
+
+  $drop.on("dragover", function(event) {
+    event.preventDefault();
+	$drop.css("border", "4px dashed blue"); // 添加蓝色边框
+  });
+
+  $drop.on("drop", function(event) {
+    event.preventDefault();
+	$drop.css("border", "1px solid #ddd"); 
+	window.video_url=null;
+    let files = event.originalEvent.dataTransfer.files;
+    if (files.length > 0 && files[0].type.startsWith("video/")) {
+      let file = files[0];
+      let reader = new FileReader();
+      reader.onload = function(e) {
+        $video.attr("src", e.target.result);
+        $video.removeAttr("hidden");
+        $video.get(0).play(); // 立即播放视频
+        $close.removeAttr("hidden");
+		
+		let formData = new FormData();
+        formData.append("audio", file, file.name); // 指定文件名称
+
+        $.ajax({
+          url: "/upload_video",
+          type: "POST",
+          data: formData, // 发送文件数据
+          processData: false,
+          contentType: false,
+          success: function(res) {
+            if (res.code === 0) {
+              window.video_url = res.data;
+            } else {
+              alert(res.msg);
+            }
+          },
+          error: function(err) {
+            alert("上传失败");
+          }
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+		
+		
+		
+		
+		
+		// 视频解说end
+		
+		
+		
 			let proxy=localStorage.getItem('proxy')
 			let api_key=localStorage.getItem('api_key')
 			if(proxy){
@@ -314,6 +674,7 @@ $.ajax({
                 });
             });
         });
-    </script>
+
+</script>
 </body>
 </html>
