@@ -9,7 +9,10 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 ROOT_DIR=Path(os.getcwd()).as_posix()
 TMP_DIR=f'{ROOT_DIR}/tmp'
-os.environ['PATH'] = ROOT_DIR + ';' + os.environ['PATH']
+if sys.platform == 'win32':
+    os.environ['PATH'] = ROOT_DIR + f';{ROOT_DIR}\\ffmpeg;' + os.environ['PATH']
+else:
+    os.environ['PATH'] = ROOT_DIR + f':{ROOT_DIR}/ffmpeg:' + os.environ['PATH']
 Path(f'{TMP_DIR}').mkdir(parents=True, exist_ok=True)
 Path(f'{ROOT_DIR}/logs').mkdir(parents=True, exist_ok=True)
 

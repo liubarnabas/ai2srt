@@ -42,3 +42,10 @@ coll = COLLECT(
     upx_exclude=[],
     name='app',
 )
+
+
+import shutil
+shutil.copy2('./prompt.json','./dist/app/prompt.json')
+shutil.copy2('./ffprobe.exe','./dist/app/ffprobe.exe')
+shutil.copy2('./ffmpeg.exe','./dist/app/ffmpeg.exe')
+shutil.copytree('./templates','./dist/app/templates')

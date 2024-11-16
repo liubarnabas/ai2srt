@@ -1,14 +1,14 @@
 __pycache__
 build
-.idea
 dist
 logs
 runtime
+.idea
 tmp
 *.bat
 *.7z
 *.bak
 *.spec
 *.exe
-test.py
 *.tmp
+test.py
