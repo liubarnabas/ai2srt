@@ -1,20 +1,19 @@
 
-# 一键创建解说短视频
+# 一键创建解说短视频/视频总结
 
-利用 GeminiAI 大模型，一键为长视频创建解说短视频。同时可支持使用三步反思法翻译字幕 & 音视频转录字幕
-
-https://github.com/user-attachments/assets/ba945a0f-2acc-4bac-b0c6-10988e278007
+利用 GeminiAI 大模型，一键为长视频创建解说短视频或视频总结。同时可支持使用三步反思法翻译字幕 & 音视频转录字幕
 
 
 ## 功能特性
 
 - 一键为长视频创建解说短视频。
+- 制作视频总结
 - 支持三步反思法翻译SRT字幕
 - 支持音视频转录为SRT字幕
 
-## UI
+## 界面
 
-![image](https://github.com/user-attachments/assets/0acc37ad-ca94-4d83-84c9-56abb584a9fc)
+![image](https://github.com/user-attachments/assets/aeb39f4f-9eb0-4c5d-b776-386a67b99a22)
 
 
 启动将在web浏览器打开一个单页 `http://127.0.0.1:5030`. 可执行解说视频创建、字幕翻译或音视频转录操作
