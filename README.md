@@ -32,7 +32,8 @@
 
 下载预打包版:
 
-https://github.com/jianchang512/ai2srt/releases/download/v0.2/windows-ai2srt-0.2.7z
+https://github.com/jianchang512/ai2srt/releases/download/v0.3/window-gemini-video-tools-0.3.7z
+
 
 解压双击 `启动.bat`可用
 
