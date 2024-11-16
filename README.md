@@ -44,7 +44,7 @@ https://github.com/jianchang512/ai2srt/releases/download/v0.2/windows-ai2srt-0.2
 
 git clone https://github.com/jianchang512/ai2srt 
 
-cd ai-trans-recogn
+cd ai2srt
 
 python3 -m venv venv 
 
