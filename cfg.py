@@ -17,11 +17,11 @@ Path(f'{TMP_DIR}').mkdir(parents=True, exist_ok=True)
 Path(f'{ROOT_DIR}/logs').mkdir(parents=True, exist_ok=True)
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 _file_handler = logging.FileHandler(f'{ROOT_DIR}/logs/{datetime.datetime.now().strftime("%Y%m%d")}.log', encoding='utf-8')
-_file_handler.setLevel(logging.INFO)
+_file_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 _file_handler.setFormatter(formatter)
 logger.addHandler(_file_handler)
