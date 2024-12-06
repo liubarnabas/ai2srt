@@ -747,3 +747,147 @@ def precise_speed_up_audio(*, file_path=None, target_duration_ms=120000, max_rat
     logger.debug(f"Exported sped-up audio to {file_path}")
     # 返回速度调整后的音频
     return True
+
+
+#########################
+# 以下为新增的辅助函数和create_cut_video函数
+#########################
+
+def time_str_to_seconds(timestr):
+    parts = timestr.split(':')
+    # 根据parts长度补全小时/分钟
+    if len(parts) == 1:
+        # 只有秒
+        h, m, s = 0, 0, float(parts[0])
+    elif len(parts) == 2:
+        # 有分钟和秒
+        h, m, s = 0, int(parts[0]), float(parts[1])
+    elif len(parts) == 3:
+        # 有小时、分钟和秒
+        h, m, s = int(parts[0]), int(parts[1]), float(parts[2])
+    else:
+        raise ValueError(f"Invalid time string format: {timestr}")
+
+    return h*3600 + m*60 + s
+
+def seconds_to_time_str(sec):
+    # 将秒数转为 HH:MM:SS 格式，保留至毫秒
+    hours = int(sec // 3600)
+    sec = sec % 3600
+    minutes = int(sec // 60)
+    seconds = sec % 60
+    return f"{hours:02d}:{minutes:02d}:{seconds:06.3f}"
+
+def merge_intervals(intervals):
+    # 合并重叠或相邻区间
+    if not intervals:
+        return []
+    intervals.sort(key=lambda x: x[0])
+    merged = [intervals[0]]
+    for current in intervals[1:]:
+        prev = merged[-1]
+        if current[0] <= prev[1]:
+            merged[-1] = (prev[0], max(prev[1], current[1]))
+        else:
+            merged.append(current)
+    return merged
+
+def get_video_duration(video_path):
+    # 使用已定义的get_video_ms函数获取毫秒，再转为秒
+    ms = get_video_ms(video_path)
+    return ms / 1000.0 if ms else 0.0
+
+def create_cut_video(video_path, time_list):
+    """
+    根据需要删除的时间段列表从原视频中移除这些片段，保留其他片段，并输出到output目录下的final_cut.mp4
+    time_list格式: "00:00:10-00:00:20,00:01:00-00:01:30"
+    其中这些区间的片段将被删除，输出视频将不包含这些区间
+    """
+    logger.debug(f"Entering create_cut_video with video_path={video_path}, time_list={time_list}")
+
+    output_dir = Path("output")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 创建临时工作目录
+    working_dir = output_dir / "temp"
+    working_dir.mkdir(parents=True, exist_ok=True)
+    
+    total_duration = get_video_duration(video_path)
+    logger.debug(f"Video total duration: {total_duration}s")
+
+    # 解析要删除的片段时间区间并合并
+    remove_intervals = []
+    if time_list.strip():
+        for interval_str in time_list.split(','):
+            interval_str = interval_str.strip()
+            if interval_str:
+                start_str, end_str = interval_str.split('-')
+                start_sec = time_str_to_seconds(start_str.strip())
+                end_sec = time_str_to_seconds(end_str.strip())
+                if start_sec < end_sec:
+                    start_sec = max(0, start_sec)
+                    end_sec = min(end_sec, total_duration)
+                    remove_intervals.append((start_sec, end_sec))
+
+    remove_intervals = merge_intervals(remove_intervals)
+    logger.debug(f"Final remove intervals: {remove_intervals}")
+
+    # 计算保留片段
+    keep_intervals = []
+    prev_end = 0.0
+    for (r_start, r_end) in remove_intervals:
+        if r_start > prev_end:
+            keep_intervals.append((prev_end, r_start))
+        prev_end = r_end
+    if prev_end < total_duration:
+        keep_intervals.append((prev_end, total_duration))
+    
+    logger.debug(f"Keep intervals: {keep_intervals}")
+
+    if not keep_intervals:
+        # 没有保留区间则输出一个空白视频
+        logger.warning("No intervals to keep, creating an empty video.")
+        final_output = output_dir / "final_cut.mp4"
+        subprocess.run([
+            "ffmpeg", "-y", 
+            "-f", "lavfi", 
+            "-i", "color=black:duration=1:size=320x240:rate=25", 
+            "-c:v", "libx264",
+            str(final_output)
+        ], check=True)
+        return str(final_output)
+
+    file_list = []
+    for i, (start_sec, end_sec) in enumerate(keep_intervals):
+        segment_file_name = f'segment-{i}.mp4'
+        segment_file_path = working_dir / segment_file_name
+        start_str = seconds_to_time_str(start_sec).replace(',', '.')
+        end_str = seconds_to_time_str(end_sec).replace(',', '.')
+        logger.debug(f"Cutting segment {i}: start={start_str}, end={end_str}, output={segment_file_path}")
+        cut_from_video(source=video_path, ss=start_str, to=end_str, out=str(segment_file_path))
+        file_list.append(f"file '{segment_file_path.name}'")
+
+    concat_txt_path = working_dir / 'file.txt'
+    logger.debug(f"Writing concat list to file: {concat_txt_path}")
+    concat_txt_path.write_text('\n'.join(file_list), encoding='utf-8')
+    
+    # 使用绝对路径来传递给 concat_multi_mp4，以确保内部切换目录后仍能正确定位文件
+    concat_txt_abs = concat_txt_path.resolve()  # 获取绝对路径
+    final_output = output_dir / "final_cut.mp4"
+    logger.debug(f"Concatenating video segments into {final_output}")
+    concat_multi_mp4(out=str(final_output.resolve()), concat_txt=str(concat_txt_abs))
+    
+    # 清理临时文件
+    logger.debug("Cleaning up temporary files")
+    try:
+        concat_txt_path.unlink(missing_ok=True)
+        for seg_file in working_dir.glob("segment-*.mp4"):
+            seg_file.unlink(missing_ok=True)
+        # 如果不需要保留temp目录，可以在确认无其他文件后删除
+        # working_dir.rmdir()
+    except Exception as e:
+        logger.error(f"Error while cleaning up temporary files: {e}")
+
+    logger.debug("Exiting create_cut_video")
+    return str(final_output)
+

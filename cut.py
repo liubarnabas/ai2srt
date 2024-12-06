@@ -18,8 +18,8 @@ import tools
 # Ensure TMP_DIR exists
 os.makedirs(TMP_DIR, exist_ok=True)
 
-# Load 'prompt2.json'
-with open(os.path.join(ROOT_DIR, 'prompt_jieshuo.json'), 'r', encoding='utf-8') as f:
+# Load 'prompt_cut.json'
+with open(os.path.join(ROOT_DIR, 'prompt_cut.json'), 'r', encoding='utf-8') as f:
     PROMPT_LIST = json.load(f)
     logger.debug("Loaded prompt2.json successfully.")
 
@@ -31,7 +31,7 @@ class Gemini:
         self.model_name = model_name
         self.audio_file = audio_file
 
-    def run_jieshuo(self):
+    def run_cut(self):
         logger.debug("Starting run_jieshuo method.")
         video_filename = Path(self.audio_file).stem
         tmpname = f'{TMP_DIR}/{video_filename}.mp4'
@@ -46,7 +46,7 @@ class Gemini:
             logger.debug(f"Temporary file {tmpname} already exists. Skipping ffmpeg conversion.")
 
         self.audio_file = tmpname
-        prompt = PROMPT_LIST['prompt_jieshuo']
+        prompt = PROMPT_LIST['prompt_cut']
         logger.debug("Constructed narration prompt.")
         result = {"timelist": [], "srt": ""}
         while True:
@@ -91,16 +91,10 @@ class Gemini:
                 if time_match:
                     result['timelist'] = time_match.group(1).strip()
                     logger.debug(f"Extracted timelist: {result['timelist']}")
-
-                srt_match = re.search(r'<SRT>\**?(.*)\**?</SRT>', res_str, re.I | re.S)
-                if srt_match:
-                    result["srt"] = srt_match.group(1).strip()
-                    logger.debug(f"Extracted SRT: {result['srt']}")
-
-                if not result['timelist'] or not result['srt']:
+                if not result['timelist']:
                     logger.error('Result is empty')
                     raise Exception('Result is empty')
-                logger.debug("Narration and SRT extraction completed successfully.")
+                logger.debug("Narration  completed successfully.")
                 return result
             except (ServerError, RetryError, socket.timeout) as e:
                 logger.error("Unable to connect to Gemini, please try using or changing the proxy", exc_info=True)
@@ -121,7 +115,7 @@ if __name__ == '__main__':
 
     MODEL_NAME = 'gemini-1.5-flash'
     ROLE = "zh-CN-YunxiNeural"    # Set to desired role or leave as None
-    RATE = "+0%"
+    RATE = "+50%"
     PITCH= "+0Hz"
     INSERT_SRT = 0 # Set to 1 if you want to insert SRT
 
@@ -142,21 +136,16 @@ if __name__ == '__main__':
             # Initialize Gemini task
             task = Gemini(model_name=MODEL_NAME, api_key=API_KEY, audio_file=video_file)
             logger.debug("Initialized Gemini task for narration.")
-            result = task.run_jieshuo()
+            result = task.run_cut()
             if not result:
                 logger.warning("No narration script generated.")
                 continue  # Skip to next file
 
             # Proceed to create short video
             logger.debug("Starting video processing based on timestamps.")
-            tools.create_short_video(
+            tools.create_cut_video(
                 video_path=video_file,
                 time_list=result['timelist'],
-                srt_str=result['srt'],
-                role=ROLE,
-                pitch=PITCH,
-                rate=RATE,
-                insert_srt=INSERT_SRT
             )
             # Move or save the output video to OUTPUT_FOLDER
             output_video_path = os.path.join(OUTPUT_FOLDER, f"{Path(video_file)}_shortvideo.mp4")
